@@ -1,128 +1,110 @@
 import streamlit as st
 import pandas as pd
+import os
 from datetime import datetime
 
-st.set_page_config(page_title="Fantaratto Easy", layout="wide")
+# === CONFIGURAZIONE BASE ===
+st.set_page_config(page_title="Fantaratto Easy", page_icon="🐀", layout="centered")
 
-# -------------------------------
-# IMPOSTAZIONI
-# -------------------------------
 GIOCATORI = ["Ali", "Ale", "Ani", "Catta", "Corra", "Dada", "Gabbo", "Giugi", "Pippo", "Ricky", "Sert", "Simo", "Sofi"]
-NUM_GIOCATORI = len(GIOCATORI)
-PDF_COSTITUZIONE = "costituzione.pdf"  # metti qui il nome del file PDF nella stessa cartella
+FILE_PROPOSTE = "proposte.csv"
+FILE_VOTI = "voti.csv"
 
-# Inizializza memoria sessione
-if "proposte" not in st.session_state:
-    st.session_state.proposte = []  # lista di dizionari: id, proponente, target, punti, motivo, voti, stato
-if "punteggi" not in st.session_state:
-    st.session_state.punteggi = {nome: 0 for nome in GIOCATORI}
+# === FUNZIONI DI SUPPORTO ===
+def carica_csv(nome_file, colonne):
+    if not os.path.exists(nome_file):
+        return pd.DataFrame(columns=colonne)
+    return pd.read_csv(nome_file)
 
-# -------------------------------
-# FUNZIONI
-# -------------------------------
-def aggiungi_proposta(proponente, target, punti, motivo):
-    nuova = {
-        "id": len(st.session_state.proposte) + 1,
-        "proponente": proponente,
-        "target": target,
-        "punti": punti,
-        "motivo": motivo,
-        "voti": {},
-        "stato": "In attesa",
-        "data": datetime.now().strftime("%d/%m/%Y %H:%M")
-    }
-    st.session_state.proposte.append(nuova)
+def salva_csv(df, nome_file):
+    df.to_csv(nome_file, index=False)
 
-def vota(proposta_id, votante, voto):
-    for p in st.session_state.proposte:
-        if p["id"] == proposta_id:
-            p["voti"][votante] = voto
-            if len(p["voti"]) == NUM_GIOCATORI:
-                if all(v == "Sì" for v in p["voti"].values()):
-                    p["stato"] = "Approvata"
-                    st.session_state.punteggi[p["target"]] += p["punti"]
-                else:
-                    p["stato"] = "Rifiutata"
+# === CARICAMENTO DATI ===
+proposte = carica_csv(FILE_PROPOSTE, ["id", "proponente", "bersaglio", "punti", "motivazione", "data", "approvata"])
+voti = carica_csv(FILE_VOTI, ["proposta_id", "votante", "voto"])
 
-# -------------------------------
-# INTERFACCIA
-# -------------------------------
-st.title("🏴 Fantaratto Easy")
+# === MENU PRINCIPALE ===
+st.title("🐀 Fantaratto Easy")
+pagina = st.sidebar.selectbox("Naviga:", ["Proponi Punti", "Vota Proposte", "Classifica", "Costituzione"])
 
-tabs = st.tabs(["Proponi", "Vota", "Classifica", "Storico", "Costituzione"])
-tab_proponi, tab_vota, tab_class, tab_storico, tab_pdf = tabs
-
-# -------------------------------
-# TAB 1: Proponi
-# -------------------------------
-with tab_proponi:
-    st.header("💡 Proponi punti ratto")
-    proponente = st.selectbox("Chi sei?", GIOCATORI)
-    target = st.selectbox("A chi assegni i punti?", [g for g in GIOCATORI if g != proponente])
-    punti = st.number_input("Punti (+ torto, - gesto buono)", step=1, value=1)
-    motivo = st.text_area("Motivazione")
+# === PAGINA: PROPONI ===
+if pagina == "Proponi Punti":
+    st.header("📩 Proponi una nuova penalità o bonus")
+    proponente = st.selectbox("Chi propone?", GIOCATORI)
+    bersaglio = st.selectbox("A chi?", [g for g in GIOCATORI if g != proponente])
+    punti = st.number_input("Punti ratto (+ se cattiveria, - se gesto buono)", step=1, value=1)
+    motivazione = st.text_area("Motivazione")
+    
     if st.button("Invia proposta"):
-        if motivo.strip() == "":
-            st.warning("Scrivi una motivazione!")
-        else:
-            aggiungi_proposta(proponente, target, punti, motivo)
-            st.success("Proposta inviata! Tutti devono ora votare.")
+        nuova_id = datetime.now().strftime("%Y%m%d%H%M%S")
+        nuova = {
+            "id": nuova_id,
+            "proponente": proponente,
+            "bersaglio": bersaglio,
+            "punti": punti,
+            "motivazione": motivazione,
+            "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "approvata": False
+        }
+        proposte = pd.concat([proposte, pd.DataFrame([nuova])], ignore_index=True)
+        salva_csv(proposte, FILE_PROPOSTE)
+        st.success("✅ Proposta inviata e in attesa di votazione!")
 
-# -------------------------------
-# TAB 2: Vota
-# -------------------------------
-with tab_vota:
-    st.header("🗳️ Vota proposte")
-    votante = st.selectbox("Chi sta votando?", GIOCATORI, key="votante")
-    in_attesa = [p for p in st.session_state.proposte if p["stato"] == "In attesa"]
+# === PAGINA: VOTA ===
+elif pagina == "Vota Proposte":
+    st.header("🗳️ Vota le proposte in sospeso")
+    votante = st.selectbox("Chi sta votando?", GIOCATORI)
+    in_sospeso = proposte[proposte["approvata"] == False]
 
-    if not in_attesa:
-        st.info("Nessuna proposta in attesa di voto.")
+    if in_sospeso.empty:
+        st.info("Nessuna proposta in attesa di votazione.")
     else:
-        for p in in_attesa:
-            st.divider()
-            st.subheader(f"Proposta #{p['id']} — {p['proponente']} → {p['target']} ({p['punti']} punti)")
-            st.write(f"📝 *Motivo:* {p['motivo']}")
-            if votante in p["voti"]:
-                st.info("Hai già votato questa proposta.")
+        for _, r in in_sospeso.iterrows():
+            st.subheader(f"{r['proponente']} → {r['bersaglio']} ({r['punti']} punti)")
+            st.write(f"📝 {r['motivazione']}")
+            voti_esistenti = voti[(voti["proposta_id"] == r["id"]) & (voti["votante"] == votante)]
+
+            if not voti_esistenti.empty:
+                st.caption("Hai già votato questa proposta.")
             else:
-                scelta = st.radio("Il tuo voto:", ["Sì", "No"], key=f"voto_{p['id']}_{votante}")
-                if st.button("Invia voto", key=f"btn_{p['id']}_{votante}"):
-                    vota(p["id"], votante, scelta)
-                    st.success("Voto registrato (anonimo per gli altri).")
+                voto = st.radio(f"Voto per proposta {r['id']}", ["Sì", "No"], key=r['id'])
+                if st.button(f"Invia voto per {r['id']}", key=f"btn_{r['id']}"):
+                    nuovi_voti = pd.DataFrame([{
+                        "proposta_id": r["id"],
+                        "votante": votante,
+                        "voto": voto
+                    }])
+                    voti = pd.concat([voti, nuovi_voti], ignore_index=True)
+                    salva_csv(voti, FILE_VOTI)
+                    st.success("✅ Voto registrato!")
 
-# -------------------------------
-# TAB 3: Classifica
-# -------------------------------
-with tab_class:
+        # Verifica se ci sono proposte da approvare
+        for pid in in_sospeso["id"]:
+            voti_proposta = voti[voti["proposta_id"] == pid]
+            if len(voti_proposta["votante"].unique()) == len(GIOCATORI):
+                # Tutti hanno votato
+                if all(voti_proposta["voto"] == "Sì"):
+                    proposte.loc[proposte["id"] == pid, "approvata"] = True
+                    salva_csv(proposte, FILE_PROPOSTE)
+                    st.success(f"🎉 Proposta {pid} approvata all'unanimità!")
+
+# === PAGINA: CLASSIFICA ===
+elif pagina == "Classifica":
     st.header("🏆 Classifica Ratto")
-    df = pd.DataFrame({
-        "Giocatore": list(st.session_state.punteggi.keys()),
-        "Punti": list(st.session_state.punteggi.values())
-    }).sort_values("Punti", ascending=False)
-    st.dataframe(df, use_container_width=True)
-
-# -------------------------------
-# TAB 4: Storico
-# -------------------------------
-with tab_storico:
-    st.header("📚 Storico Proposte")
-    if not st.session_state.proposte:
-        st.info("Nessuna proposta finora.")
+    approvate = proposte[proposte["approvata"] == True]
+    if approvate.empty:
+        st.info("Ancora nessuna proposta approvata.")
     else:
-        df = pd.DataFrame(st.session_state.proposte)
-        st.dataframe(df[["id", "proponente", "target", "punti", "motivo", "stato", "data"]], use_container_width=True)
+        punteggi = approvate.groupby("bersaglio")["punti"].sum().reset_index()
+        punteggi.columns = ["Giocatore", "Totale punti ratto"]
+        punteggi = punteggi.sort_values("Totale punti ratto", ascending=False)
+        st.table(punteggi)
 
-# -------------------------------
-# TAB 5: Costituzione
-# -------------------------------
-with tab_pdf:
+# === PAGINA: COSTITUZIONE ===
+elif pagina == "Costituzione":
     st.header("📜 Costituzione del Fantaratto")
-    try:
-        with open(PDF_COSTITUZIONE, "rb") as f:
-            st.download_button("📥 Scarica la Costituzione", f, file_name="Costituzione_Fantaratto.pdf")
-    except FileNotFoundError:
-        st.warning("Carica il file 'costituzione.pdf' nella stessa cartella del programma.")
-
-st.markdown("---")
-st.caption("Fantaratto Easy — sistema equo e trasparente per punire e premiare le ratterie.")
+    if os.path.exists("costituzione.pdf"):
+        with open("costituzione.pdf", "rb") as f:
+            st.download_button("Scarica la Costituzione", f, file_name="costituzione.pdf")
+    else:
+        st.warning("Nessun file costituzione.pdf trovato nella cartella.")
