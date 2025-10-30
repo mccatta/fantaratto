@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from supabase import create_client, Client
+import requests
 import uuid
 
 # --- CONFIG ---
@@ -9,18 +9,20 @@ st.set_page_config(page_title="Fantaratto Cloud", page_icon="🐀", layout="cent
 
 GIOCATORI = ["Ali","Ale","Ani","Catta","Corra","Dada","Gabbo","Giugi","Pippo","Ricky","Sert","Simo","Sofi"]
 
-SUPABASE_URL = "https://kcakeewkrmxyldvcpdbe.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWtlZXdrcm14eWxkdmNwZGJlIiwicm9sZSIsImFub24iLCJpYXQiOjE3NjE4MjM0MjUsImV4cCI6MjA3NzM5OTQyNX0.-3vvufy6budEU-HwTU-4I0sNfRn7QWN0kad1bJN4BD8"
+PROJECT_URL = "https://kcakeewkrmxyldvcpdbe.supabase.co"
+API_KEY = "eyJh...BN4BD8"
+TABLE = "proposte"
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+headers = {
+    "apikey": API_KEY,
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+}
 
-# test connessione
-try:
-    res = supabase.table("proposte").select("*").limit(1).execute()
-    st.success("✅ Connessione a Supabase OK!")
-    st.write(res.data)
-except Exception as e:
-    st.error(f"❌ Errore connessione: {e}")
+# Leggi tutte le proposte
+res = requests.get(f"{PROJECT_URL}/rest/v1/{TABLE}", headers=headers)
+st.write(res.json())
 
 
 # --- FUNZIONI ---
