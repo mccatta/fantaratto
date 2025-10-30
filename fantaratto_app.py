@@ -47,7 +47,7 @@ def supabase_patch(table, match_field, match_value, data):
 # UI PRINCIPALE
 # =======================
 st.set_page_config(page_title="🐀 Fantaratto", page_icon="🐀", layout="centered")
-st.title("🐀 Fantaratto Cloud")
+st.title("🐀 Fantaratto")
 
 menu = st.sidebar.radio("Naviga", ["Proposte", "Votazioni", "Classifica", "Costituzione"])
 
@@ -59,7 +59,7 @@ if menu == "Proposte":
 
     proponente = st.selectbox("Chi propone", GIOCATORI)
     bersaglio = st.selectbox("Chi riceve i punti", [g for g in GIOCATORI if g != proponente])
-    punti = st.number_input("Punti ratto (negativi = gesto buono)", min_value=-50, max_value=50, step=1.0)
+    punti = st.number_input("Punti ratto (negativi = gesto buono)", min_value=-50.0, max_value=50.0, step=1.0)
     punti = int(punti)
     motivazione = st.text_area("Motivazione")
 
