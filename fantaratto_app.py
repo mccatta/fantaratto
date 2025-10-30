@@ -136,7 +136,7 @@ elif menu == "Votazioni":
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button(f"👍 Approva - {p['id']}", key=f"yes_{p['id']}_{votante}"):
+                if st.button(f"👍 Approva", key=f"yes_{p['id']}_{votante}"):
                     voto = {
                         "id": str(uuid.uuid4()),
                         "proposta_id": p["id"],
@@ -148,7 +148,7 @@ elif menu == "Votazioni":
                     st.rerun()
 
             with col2:
-                if st.button(f"👎 Rifiuta - {p['id']}", key=f"no_{p['id']}_{votante}"):
+                if st.button(f"👎 Rifiuta", key=f"no_{p['id']}_{votante}"):
                     voto = {
                         "id": str(uuid.uuid4()),
                         "proposta_id": p["id"],
