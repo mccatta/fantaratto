@@ -87,7 +87,7 @@ if menu == "Proposte":
 
     if proposte:
         df = pd.DataFrame(proposte)
-        st.dataframe(df[["proponente", "bersaglio", "punti", "motivazione", "approvata", "data"]], use_container_width=True)
+        st.dataframe(df[["proponente", "bersaglio", "punti", "motivazione", "approvata"]], use_container_width=True)
     else:
         st.info("Nessuna proposta presente.")
 
