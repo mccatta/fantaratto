@@ -236,12 +236,12 @@ for p in proposte:
 # SEZIONE CLASSIFICA (Opzione B: Rank come indice)
 # =======================
 elif menu == "Classifica":
-    st.header("🏆 Classifica Ratto")
+     st.header("🏆 Classifica Ratto")
 
-    proposte = supabase_get("proposte")
-    punteggi = {g: 0 for g in GIOCATORI}
+     proposte = supabase_get("proposte")
+     punteggi = {g: 0 for g in GIOCATORI}
 
-    for p in proposte:
+     for p in proposte:
         if isinstance(p, dict) and p.get("approvata"):
             try:
                 punti_val = int(p.get("punti", 0))
@@ -251,12 +251,12 @@ elif menu == "Classifica":
             if bers in punteggi:
                 punteggi[bers] += punti_val
 
-    df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"])
-    df["Rank"] = df["Punti Ratto"].rank(method="dense", ascending=False).astype(int)
-    df = df.sort_values(["Rank", "Punti Ratto"], ascending=[True, False]).reset_index(drop=True)
+     df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"])
+     df["Rank"] = df["Punti Ratto"].rank(method="dense", ascending=False).astype(int)
+     df = df.sort_values(["Rank", "Punti Ratto"], ascending=[True, False]).reset_index(drop=True)
 
-    display_df = df[["Rank", "Giocatore", "Punti Ratto"]].set_index("Rank")
-    st.dataframe(display_df, use_container_width=True)
+     display_df = df[["Rank", "Giocatore", "Punti Ratto"]].set_index("Rank")
+     st.dataframe(display_df, use_container_width=True)
 
 # =======================
 # SEZIONE STORICO
