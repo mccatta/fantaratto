@@ -1,108 +1,111 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from supabase import create_client, Client
+import uuid
 
-st.set_page_config(page_title="Fantaratto Easy", page_icon="🐀", layout="centered")
+# --- CONFIG ---
+st.set_page_config(page_title="Fantaratto Cloud", page_icon="🐀", layout="centered")
 
-GIOCATORI = ["Ali", "Ale", "Ani", "Catta", "Corra", "Dada", "Gabbo", "Giugi", "Pippo", "Ricky", "Sert", "Simo", "Sofi"]
+GIOCATORI = ["Ali","Ale","Ani","Catta","Corra","Dada","Gabbo","Giugi","Pippo","Ricky","Sert","Simo","Sofi"]
 
-# Inizializza session state
-if "proposte" not in st.session_state:
-    st.session_state.proposte = []  # lista di dizionari: id, proponente, target, punti, motivo, voti, stato, data
-if "punteggi" not in st.session_state:
-    st.session_state.punteggi = {nome: 0 for nome in GIOCATORI}
+SUPABASE_URL = "https://kcakeewkrmxyldvcpdbe.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWtlZXdrcm14eWxkdmNwZGJlIiwicm9sZSIsImFub24iLCJpYXQiOjE3NjE4MjM0MjUsImV4cCI6MjA3NzM5OTQyNX0.-3vvufy6budEU-HwTU-4I0sNfRn7QWN0kad1bJN4BD8"
 
-# Funzioni
-def aggiungi_proposta(proponente, target, punti, motivo):
-    nuova = {
-        "id": len(st.session_state.proposte) + 1,
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# --- FUNZIONI ---
+def carica_proposte():
+    res = supabase.table("proposte").select("*").execute()
+    return pd.DataFrame(res.data) if res.data else pd.DataFrame(columns=["id","proponente","bersaglio","punti","motivazione","data","approvata"])
+
+def carica_voti():
+    res = supabase.table("voti").select("*").execute()
+    return pd.DataFrame(res.data) if res.data else pd.DataFrame(columns=["id","proposta_id","votante","voto"])
+
+def invia_proposta(proponente, bersaglio, punti, motivazione):
+    supabase.table("proposte").insert({
+        "id": str(uuid.uuid4()),
         "proponente": proponente,
-        "target": target,
+        "bersaglio": bersaglio,
         "punti": punti,
-        "motivo": motivo,
-        "voti": {},
-        "stato": "In attesa",
-        "data": datetime.now().strftime("%d/%m/%Y %H:%M")
-    }
-    st.session_state.proposte.append(nuova)
+        "motivazione": motivazione,
+        "data": datetime.now().isoformat(),
+        "approvata": False
+    }).execute()
 
-def vota(proposta_id, votante, voto):
-    for p in st.session_state.proposte:
-        if p["id"] == proposta_id:
-            p["voti"][votante] = voto
-            if len(p["voti"]) == len(GIOCATORI):
-                if all(v == "Sì" for v in p["voti"].values()):
-                    p["stato"] = "Approvata"
-                    st.session_state.punteggi[p["target"]] += p["punti"]
-                else:
-                    p["stato"] = "Rifiutata"
+def invia_voto(proposta_id, votante, voto):
+    supabase.table("voti").insert({
+        "id": str(uuid.uuid4()),
+        "proposta_id": proposta_id,
+        "votante": votante,
+        "voto": voto
+    }).execute()
+    # Controlla approvazione automatica
+    voti = carica_voti()
+    voti_proposta = voti[voti["proposta_id"]==proposta_id]
+    if len(voti_proposta["votante"].unique()) == len(GIOCATORI):
+        if all(voti_proposta["voto"]):
+            supabase.table("proposte").update({"approvata": True}).eq("id", proposta_id).execute()
 
-# Interfaccia
-st.title("🐀 Fantaratto Easy")
-tabs = st.tabs(["Proponi", "Vota", "Classifica", "Storico", "Costituzione"])
-tab_proponi, tab_vota, tab_class, tab_storico, tab_pdf = tabs
+# --- INTERFACCIA ---
+st.title("🐀 Fantaratto Cloud")
+tabs = st.tabs(["Proponi","Vota","Classifica","Costituzione"])
+tab_prop, tab_vota, tab_class, tab_pdf = tabs
 
-# TAB 1: Proponi
-with tab_proponi:
+# --- PROPONI ---
+with tab_prop:
     st.header("💡 Proponi punti ratto")
     proponente = st.selectbox("Chi sei?", GIOCATORI)
-    target = st.selectbox("A chi assegni i punti?", [g for g in GIOCATORI if g != proponente])
-    punti = st.number_input("Punti (+ torto, - gesto buono)", step=1, value=1)
+    target = st.selectbox("A chi?", [g for g in GIOCATORI if g != proponente])
+    punti = st.number_input("Punti (+ cattiveria, - gesto buono)", step=1, value=1)
     motivo = st.text_area("Motivazione")
     if st.button("Invia proposta"):
-        if motivo.strip() == "":
-            st.warning("Scrivi una motivazione!")
-        else:
-            aggiungi_proposta(proponente, target, punti, motivo)
-            st.success("Proposta inviata! Tutti devono ora votare.")
+        if motivo.strip() != "":
+            invia_proposta(proponente, target, punti, motivo)
+            st.success("✅ Proposta inviata!")
 
-# TAB 2: Vota
+# --- VOTA ---
 with tab_vota:
-    st.header("🗳️ Vota proposte")
-    votante = st.selectbox("Chi sta votando?", GIOCATORI, key="votante")
-    in_attesa = [p for p in st.session_state.proposte if p["stato"] == "In attesa"]
+    st.header("🗳️ Vota le proposte")
+    votante = st.selectbox("Chi sta votando?", GIOCATORI, key="votante_cloud")
+    proposte = carica_proposte()
+    voti = carica_voti()
+    in_attesa = proposte[proposte["approvata"]==False]
 
-    if not in_attesa:
+    if in_attesa.empty:
         st.info("Nessuna proposta in attesa di voto.")
     else:
-        for p in in_attesa:
+        for _, p in in_attesa.iterrows():
             st.divider()
-            st.subheader(f"Proposta #{p['id']} — {p['proponente']} → {p['target']} ({p['punti']} punti)")
-            st.write(f"📝 *Motivo:* {p['motivo']}")
-            if votante in p["voti"]:
+            st.subheader(f"{p['proponente']} → {p['bersaglio']} ({p['punti']} punti)")
+            st.write(f"📝 *Motivo:* {p['motivazione']}")
+            if votante in voti[voti["proposta_id"]==p["id"]]["votante"].values:
                 st.info("Hai già votato questa proposta.")
             else:
-                scelta = st.radio("Il tuo voto:", ["Sì", "No"], key=f"voto_{p['id']}_{votante}")
-                if st.button("Invia voto", key=f"btn_{p['id']}_{votante}"):
-                    vota(p["id"], votante, scelta)
-                    st.success("Voto registrato (anonimo per gli altri).")
+                voto = st.radio("Il tuo voto:", ["Sì","No"], key=p["id"])
+                if st.button("Invia voto", key=f"btn_{p['id']}"):
+                    invia_voto(p["id"], votante, voto=="Sì")
+                    st.success("✅ Voto registrato!")
 
-# TAB 3: Classifica
+# --- CLASSIFICA ---
 with tab_class:
-    st.header("🏆 Classifica Ratto")
-    df = pd.DataFrame({
-        "Giocatore": list(st.session_state.punteggi.keys()),
-        "Punti": list(st.session_state.punteggi.values())
-    }).sort_values("Punti", ascending=False)
-    st.dataframe(df, use_container_width=True)
-
-# TAB 4: Storico
-with tab_storico:
-    st.header("📚 Storico Proposte")
-    if not st.session_state.proposte:
-        st.info("Nessuna proposta finora.")
+    st.header("🏆 Classifica")
+    proposte_approvate = carica_proposte()
+    proposte_approvate = proposte_approvate[proposte_approvate["approvata"]==True]
+    if proposte_approvate.empty:
+        st.info("Nessuna proposta approvata.")
     else:
-        df = pd.DataFrame(st.session_state.proposte)
-        st.dataframe(df[["id", "proponente", "target", "punti", "motivo", "stato", "data"]], use_container_width=True)
+        df = proposte_approvate.groupby("bersaglio")["punti"].sum().reset_index()
+        df.columns = ["Giocatore","Punti"]
+        df = df.sort_values("Punti",ascending=False)
+        st.dataframe(df, use_container_width=True)
 
-# TAB 5: Costituzione
+# --- COSTITUZIONE ---
 with tab_pdf:
     st.header("📜 Costituzione del Fantaratto")
     try:
-        with open("costituzione.pdf", "rb") as f:
-            st.download_button("📥 Scarica la Costituzione", f, file_name="Costituzione_Fantaratto.pdf")
+        with open("costituzione.pdf","rb") as f:
+            st.download_button("📥 Scarica Costituzione", f, file_name="Costituzione_Fantaratto.pdf")
     except FileNotFoundError:
-        st.warning("Carica il file 'costituzione.pdf' nella stessa cartella del programma.")
-
-st.markdown("---")
-st.caption("Fantaratto Easy 2.1 — sistema equo e trasparente per punire e premiare le ratterie.")
+        st.warning("Carica 'costituzione.pdf' nella cartella dell'app.")
