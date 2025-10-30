@@ -142,25 +142,32 @@ elif menu == "Votazioni":
 
             # Ricontrolla voti dopo ogni azione
           # Recupera tutti i voti della proposta corrente
+# Recupera tutti i voti
 voti = supabase_get("voti")
-voti_assoc = [v for v in voti if v["proposta_id"] == p["id"]]
 
-# Ricava i votanti unici (solo se ci sono voti)
-if voti_assoc:
-    votanti_unici = {v.get("votante") for v in voti_assoc}
-else:
-    votanti_unici = set()
+# Assicuriamoci che p abbia un "id" valido
+proposta_id = p.get("id")
+if proposta_id is None:
+    st.error("Errore: proposta senza id!")
+    continue
+
+# Filtra voti solo per questa proposta, ignorando elementi malformati
+voti_assoc = [v for v in voti if v.get("proposta_id") == proposta_id]
+
+# Ricava i votanti unici
+votanti_unici = {v.get("votante") for v in voti_assoc if v.get("votante") is not None}
 
 # Applica la regola della maggioranza solo se tutti hanno votato
 if len(votanti_unici) == len(GIOCATORI):
     yes_votes = sum(1 for v in voti_assoc if v.get("voto"))
     approvata = yes_votes > len(GIOCATORI) / 2
-    supabase_patch("proposte", "id", p["id"], {"approvata": approvata})
+    supabase_patch("proposte", "id", proposta_id, {"approvata": approvata})
 
     if approvata:
         st.success("🎉 Proposta approvata dalla maggioranza!")
     else:
         st.info("❌ Proposta bocciata dalla maggioranza.")
+
 
 
 
