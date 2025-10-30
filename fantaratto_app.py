@@ -85,6 +85,7 @@ if menu == "Proposte":
     st.markdown("---")
     st.subheader("📋 Tutte le proposte")
     proposte = supabase_get("proposte")
+    proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
     if proposte:
         df = pd.DataFrame(proposte)
         # Normalizza colonne presenti
