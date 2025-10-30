@@ -107,6 +107,53 @@ elif menu == "Votazioni":
     proposte = supabase_get("proposte")
     voti = supabase_get("voti")
 
+    # Ordina le proposte più recenti prima
+    proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
+
+    # Dividi tra attive e concluse
+    attive = [p for p in proposte if not p.get("approvata")]
+    concluse = [p for p in proposte if p.get("approvata")]
+
+    # --- PROPOSTE ATTIVE ---
+    st.subheader("⚡ Proposte attive")
+    if not attive:
+        st.info("Nessuna proposta attiva da votare.")
+    else:
+        for p in attive:
+            st.divider()
+            st.subheader(f"{p['proponente']} → {p['bersaglio']} ({p['punti']} punti)")
+            st.write(p["motivazione"])
+
+            ha_votato = any(v for v in voti if v["proposta_id"] == p["id"] and v["votante"] == votante)
+            if ha_votato:
+                st.caption("Hai già votato questa proposta ✅")
+                continue
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("👍 Approva", key=f"yes_{p['id']}_{votante}"):
+                    voto = {"id": str(uuid.uuid4()), "proposta_id": p["id"], "votante": votante, "voto": True}
+                    supabase_insert("voti", voto)
+                    st.success("Hai approvato la proposta ✅")
+
+            with col2:
+                if st.button("👎 Rifiuta", key=f"no_{p['id']}_{votante}"):
+                    voto = {"id": str(uuid.uuid4()), "proposta_id": p["id"], "votante": votante, "voto": False}
+                    supabase_insert("voti", voto)
+                    st.error("Hai rifiutato la proposta ❌")
+
+    # --- PROPOSTE CONCLUSE ---
+    st.markdown("---")
+    st.subheader("📜 Proposte concluse")
+
+    if concluse:
+        df = pd.DataFrame(concluse)
+        df = df.sort_values("data", ascending=False)
+        st.dataframe(df[["proponente", "bersaglio", "punti", "motivazione", "approvata", "data"]], use_container_width=True)
+    else:
+        st.info("Nessuna proposta conclusa.")
+
+
     if not proposte:
         st.info("Nessuna proposta da votare.")
     else:
