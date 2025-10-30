@@ -110,9 +110,17 @@ elif menu == "Votazioni":
     # Ordina le proposte più recenti prima
     proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
 
-    # Dividi tra attive e concluse
-    attive = [p for p in proposte if not p.get("approvata")]
-    concluse = [p for p in proposte if p.get("approvata")]
+    # Dividi tra attive (non approvate) e concluse (approvate)
+concluse = [p for p in proposte if p.get("approvata")]
+
+# Mostra tra le attive solo quelle che il votante NON ha ancora votato
+attive = []
+for p in proposte:
+    if not p.get("approvata"):
+        ha_votato = any(v for v in voti if v["proposta_id"] == p["id"] and v["votante"] == votante)
+        if not ha_votato:
+            attive.append(p)
+
 
     # --- PROPOSTE ATTIVE ---
     st.subheader("⚡ Proposte attive")
