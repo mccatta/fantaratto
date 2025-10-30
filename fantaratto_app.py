@@ -119,7 +119,7 @@ elif menu == "Votazioni":
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button(f"👍 Approva {p['id']}", key=f"yes_{p['id']}_{votante}"):
+               if st.button("👍 Approva", key=f"yes_{p['id']}_{votante}"):
                     voto = {
                         "id": str(uuid.uuid4()),
                         "proposta_id": p["id"],
@@ -130,7 +130,7 @@ elif menu == "Votazioni":
                     st.success("Hai approvato la proposta ✅")
 
             with col2:
-                if st.button(f"👎 Rifiuta {p['id']}", key=f"no_{p['id']}_{votante}"):
+                if st.button(f"👎 Rifiuta", key=f"no_{p['id']}_{votante}"):
                     voto = {
                         "id": str(uuid.uuid4()),
                         "proposta_id": p["id"],
@@ -145,13 +145,15 @@ elif menu == "Votazioni":
             voti_assoc = [v for v in voti if v["proposta_id"] == p["id"]]
             votanti_unici = {v["votante"] for v in voti_assoc}
 
-            if len(votanti_unici) == len(GIOCATORI):
-                tutti_si = all(v["voto"] for v in voti_assoc)
-                supabase_patch("proposte", "id", p["id"], {"approvata": tutti_si})
-                if tutti_si:
-                    st.success("🎉 Proposta approvata all'unanimità!")
-                else:
-                    st.info("❌ Proposta rifiutata (non unanime).")
+           if len(votanti_unici) == len(GIOCATORI):
+    yes_votes = sum(1 for v in voti_assoc if v["voto"])
+    approvata = yes_votes > len(GIOCATORI)/2
+    supabase_patch("proposte", "id", p["id"], {"approvata": approvata})
+    if approvata:
+        st.success("🎉 Proposta approvata dalla maggioranza!")
+    else:
+        st.info("❌ Proposta bocciata dalla maggioranza.")
+
 
 # =======================
 # SEZIONE CLASSIFICA
@@ -168,6 +170,21 @@ elif menu == "Classifica":
 
     df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"]).sort_values("Punti Ratto", ascending=False)
     st.dataframe(df, use_container_width=True)
+
+# =======================
+# SEZIONE STORICON
+# =======================
+
+elif menu == "Storico Proposte":
+    st.header("📜 Storico delle proposte")
+    proposte = supabase_get("proposte")
+    if proposte:
+        df = pd.DataFrame(proposte)
+        st.dataframe(df[["proponente", "target", "punti", "descrizione", "approvata", "created_at"]],
+                     use_container_width=True)
+    else:
+        st.info("Nessuna proposta presente.")
+
 
 # =======================
 # SEZIONE COSTITUZIONE
