@@ -1,143 +1,226 @@
 import streamlit as st
-from supabase import create_client, Client
+import requests
 import pandas as pd
+import uuid
 from datetime import datetime
 
-# === CONFIGURAZIONE SUPABASE ===
+# =======================
+# CONFIGURAZIONE SUPABASE
+# =======================
 SUPABASE_URL = "https://kcakeewkrmxyldvcpdbe.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWtlZXdrcm14eWxkdmNwZGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4MjM0MjUsImV4cCI6MjA3NzM5OTQyNX0.-3vvufy6budEU-HwTU-4I0sNfRn7QWN0kad1bJN4BD8"
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-GIOCATORI = ["Ali", "Ale", "Ani", "Catta", "Corra", "Dada", "Gabbo",
-             "Giugi", "Pippo", "Ricky", "Sert", "Simo", "Sofi"]
+HEADERS = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
+}
 
-st.set_page_config(page_title="Fantaratto", layout="centered")
+GIOCATORI = ["Ali", "Ale", "Ani", "Catta", "Corra", "Dada", "Gabbo", "Giugi", "Pippo", "Ricky", "Sert", "Simo", "Sofi"]
 
-# === FUNZIONI SUPABASE ===
+# =======================
+# FUNZIONI DI SUPPORTO
+# =======================
 def supabase_get(table):
-    try:
-        res = supabase.table(table).select("*").execute()
-        return res.data or []
-    except Exception as e:
-        st.error(f"Errore caricamento {table}: {e}")
+    url = f"{SUPABASE_URL}/rest/v1/{table}?select=*"
+    r = requests.get(url, headers=HEADERS)
+    if r.status_code == 200:
+        return r.json()
+    else:
+        st.error(f"Errore nel caricamento di {table}: {r.text}")
         return []
 
 def supabase_insert(table, data):
-    try:
-        res = supabase.table(table).insert(data).execute()
-        return res.data
-    except Exception as e:
-        st.error(f"Errore inserimento in {table}: {e}")
-        return None
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    r = requests.post(url, headers=HEADERS, json=data)
+    if r.status_code not in [200, 201]:
+        st.error(f"Errore inserimento in {table}: {r.text}")
+    return r
 
-def supabase_patch(table, key, value, data):
-    try:
-        res = supabase.table(table).update(data).eq(key, value).execute()
-        return res.data
-    except Exception as e:
-        st.error(f"Errore aggiornamento {table}: {e}")
-        return None
+def supabase_patch(table, match_field, match_value, data):
+    url = f"{SUPABASE_URL}/rest/v1/{table}?{match_field}=eq.{match_value}"
+    r = requests.patch(url, headers=HEADERS, json=data)
+    return r.status_code in [200, 204]
 
-
-# === INTERFACCIA ===
+# =======================
+# UI PRINCIPALE
+# =======================
+st.set_page_config(page_title="🐀 Fantaratto", page_icon="🐀", layout="centered")
 st.title("🐀 Fantaratto")
-menu = st.sidebar.selectbox("Menu", ["Nuova proposta", "Vota", "Classifica", "Storico"])
 
-# === NUOVA PROPOSTA ===
-if menu == "Nuova proposta":
-    st.header("➕ Crea una nuova proposta")
+menu = st.sidebar.radio("Naviga", ["Proposte", "Votazioni", "Classifica", "Storico Proposte", "Costituzione"])
 
-    proponente = st.selectbox("Chi propone?", GIOCATORI)
-    bersaglio = st.selectbox("Chi è il bersaglio?", [g for g in GIOCATORI if g != proponente])
-    punti = st.number_input("Quanti punti (+ o -)?", step=1, format="%d")
+# =======================
+# SEZIONE PROPOSTE
+# =======================
+if menu == "Proposte":
+    st.header("📣 Invia una nuova proposta")
+
+    proponente = st.selectbox("Chi propone", GIOCATORI)
+    bersaglio = st.selectbox("Chi riceve i punti", [g for g in GIOCATORI if g != proponente])
+    punti = st.number_input("Punti ratto (negativi = gesto buono)", min_value=-50.0, max_value=50.0, step=1.0)
+    punti = int(punti)
     motivazione = st.text_area("Motivazione")
 
     if st.button("Invia proposta"):
         if not motivazione.strip():
-            st.warning("Scrivi una motivazione!")
+            st.warning("⚠️ Inserisci una motivazione.")
         else:
-            data = {
+            proposta = {
+                "id": str(uuid.uuid4()),
                 "proponente": proponente,
                 "bersaglio": bersaglio,
-                "punti": int(punti),
-                "motivazione": motivazione.strip(),
+                "punti": punti,
+                "motivazione": motivazione,
                 "approvata": False,
-                "data": datetime.now().isoformat()
+                "data": datetime.utcnow().isoformat()
             }
-            supabase_insert("proposte", data)
-            st.success("✅ Proposta inviata!")
+            res = supabase_insert("proposte", proposta)
+            if res is not None and res.status_code in [200, 201]:
+                st.success("✅ Proposta inviata con successo!")
+            else:
+                st.error("❌ Errore nel salvataggio della proposta.")
 
-# === VOTA ===
-elif menu == "Vota":
+    st.markdown("---")
+    st.subheader("📋 Tutte le proposte")
+    proposte = supabase_get("proposte")
+    if proposte:
+        df = pd.DataFrame(proposte)
+        # Normalizza colonne presenti
+        cols = []
+        for c in ["proponente", "bersaglio", "punti", "motivazione", "approvata", "data"]:
+            if c in df.columns:
+                cols.append(c)
+        st.dataframe(df[cols], use_container_width=True)
+    else:
+        st.info("Nessuna proposta presente.")
+
+# =======================
+# SEZIONE VOTAZIONI
+# =======================
+elif menu == "Votazioni":
     st.header("🗳️ Vota le proposte")
 
-    votante = st.selectbox("Chi sei?", GIOCATORI)
+    votante = st.selectbox("Chi sta votando?", GIOCATORI)
     proposte = supabase_get("proposte")
     voti = supabase_get("voti")
 
-    for p in proposte:
-        proposta_id = p.get("id")
-        if proposta_id is None:
-            continue
+    if not proposte:
+        st.info("Nessuna proposta da votare.")
+    else:
+        for p in proposte:
+            # skip se già approvata o se mancano dati
+            if not isinstance(p, dict):
+                continue
+            if p.get("approvata"):
+                continue
 
-        # Mostra solo le proposte non ancora approvate
-        if not p.get("approvata", False):
-            st.subheader(f"{p['proponente']} → {p['bersaglio']} ({p['punti']} punti)")
-            st.caption(p["motivazione"])
+            proposta_id = p.get("id")
+            if not proposta_id:
+                continue
 
-            # Verifica se ha già votato
-            ha_votato = any(v.get("votante") == votante and v.get("proposta_id") == proposta_id for v in voti)
+            st.divider()
+            st.subheader(f"{p.get('proponente','?')} → {p.get('bersaglio','?')} ({p.get('punti',0)} punti)")
+            st.write(p.get("motivazione",""))
+
+            # verifica se ha già votato
+            ha_votato = any(v for v in voti if v.get("proposta_id") == proposta_id and v.get("votante") == votante)
             if ha_votato:
-                st.info("Hai già votato questa proposta.")
+                st.caption("Hai già votato questa proposta ✅")
             else:
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("👍 Approva", key=f"ok_{proposta_id}_{votante}"):
-                        supabase_insert("voti", {"proposta_id": proposta_id, "votante": votante, "voto": True})
-                        st.success("Voto registrato!")
+                    if st.button("👍 Approva", key=f"yes_{proposta_id}_{votante}"):
+                        voto = {
+                            "id": str(uuid.uuid4()),
+                            "proposta_id": proposta_id,
+                            "votante": votante,
+                            "voto": True,
+                            "data": datetime.utcnow().isoformat()
+                        }
+                        res = supabase_insert("voti", voto)
+                        if res is not None and res.status_code in [200,201]:
+                            st.success("Hai approvato la proposta ✅")
+                            voti = supabase_get("voti")  # ricarica voti
+                        else:
+                            st.error("Errore salvataggio voto.")
                 with col2:
-                    if st.button("👎 Boccia", key=f"no_{proposta_id}_{votante}"):
-                        supabase_insert("voti", {"proposta_id": proposta_id, "votante": votante, "voto": False})
-                        st.success("Voto registrato!")
+                    if st.button("👎 Rifiuta", key=f"no_{proposta_id}_{votante}"):
+                        voto = {
+                            "id": str(uuid.uuid4()),
+                            "proposta_id": proposta_id,
+                            "votante": votante,
+                            "voto": False,
+                            "data": datetime.utcnow().isoformat()
+                        }
+                        res = supabase_insert("voti", voto)
+                        if res is not None and res.status_code in [200,201]:
+                            st.error("Hai rifiutato la proposta ❌")
+                            voti = supabase_get("voti")
+                        else:
+                            st.error("Errore salvataggio voto.")
 
-    # Verifica se una proposta ha ricevuto tutti i voti
-    voti = supabase_get("voti")
-    for p in proposte:
-        proposta_id = p.get("id")
-        if proposta_id is None:
-            continue
+            # ---- dopo eventuale voto: verifica se tutti i giocatori hanno votato per questa proposta
+            voti_assoc = [v for v in voti if v.get("proposta_id") == proposta_id]
+            votanti_unici = {v.get("votante") for v in voti_assoc if v.get("votante") is not None}
 
-        voti_assoc = [v for v in voti if v.get("proposta_id") == proposta_id]
-        votanti_unici = {v.get("votante") for v in voti_assoc if v.get("votante") is not None}
+            if len(votanti_unici) == len(GIOCATORI) and len(votanti_unici) > 0:
+                yes_votes = sum(1 for v in voti_assoc if v.get("voto"))
+                approvata = yes_votes > len(GIOCATORI) / 2
+                patched = supabase_patch("proposte", "id", proposta_id, {"approvata": approvata})
+                if patched:
+                    if approvata:
+                        st.success("🎉 Proposta approvata dalla maggioranza!")
+                    else:
+                        st.info("❌ Proposta bocciata dalla maggioranza.")
+                # ricarica proposte per aggiornare UI
+                proposte = supabase_get("proposte")
 
-        if len(votanti_unici) == len(GIOCATORI):
-            yes_votes = sum(1 for v in voti_assoc if v.get("voto"))
-            approvata = yes_votes > len(GIOCATORI) / 2
-            supabase_patch("proposte", "id", proposta_id, {"approvata": approvata})
-
-# === CLASSIFICA ===
+# =======================
+# SEZIONE CLASSIFICA
+# =======================
 elif menu == "Classifica":
-    st.header("🏆 Classifica Attuale")
+    st.header("🏆 Classifica Ratto")
 
     proposte = supabase_get("proposte")
-    df = pd.DataFrame(proposte)
-    if not df.empty:
-        df_approvate = df[df["approvata"] == True]
-        classifica = df_approvate.groupby("bersaglio")["punti"].sum().reindex(GIOCATORI, fill_value=0)
-        st.bar_chart(classifica)
-    else:
-        st.info("Nessuna proposta ancora approvata.")
+    punteggi = {g: 0 for g in GIOCATORI}
 
-# === STORICO ===
-elif menu == "Storico":
-    st.header("📜 Storico Proposte")
+    for p in proposte:
+        if isinstance(p, dict) and p.get("approvata"):
+            try:
+                punti_val = int(p.get("punti", 0))
+            except:
+                punti_val = 0
+            bers = p.get("bersaglio")
+            if bers in punteggi:
+                punteggi[bers] += punti_val
+
+    df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"]).sort_values("Punti Ratto", ascending=False)
+    st.dataframe(df, use_container_width=True)
+
+# =======================
+# SEZIONE STORICO
+# =======================
+elif menu == "Storico Proposte":
+    st.header("📜 Storico delle proposte")
     proposte = supabase_get("proposte")
-    df = pd.DataFrame(proposte)
-
-    if not df.empty:
-        st.dataframe(
-            df[["proponente", "bersaglio", "punti", "motivazione", "approvata", "data"]],
-            use_container_width=True
-        )
+    if proposte:
+        df = pd.DataFrame(proposte)
+        # mostriamo colonne coerenti con il DB
+        display_cols = []
+        for c in ["proponente", "bersaglio", "punti", "motivazione", "approvata", "data"]:
+            if c in df.columns:
+                display_cols.append(c)
+        st.dataframe(df[display_cols], use_container_width=True)
     else:
-        st.info("Nessuna proposta registrata ancora.")
+        st.info("Nessuna proposta presente.")
+
+# =======================
+# SEZIONE COSTITUZIONE
+# =======================
+elif menu == "Costituzione":
+    st.header("📜 Costituzione del Fantaratto")
+    pdf = st.file_uploader("Carica la Costituzione (PDF)", type=["pdf"])
+    if pdf:
+        st.download_button("📥 Scarica Costituzione", pdf, file_name="costituzione_fantaratto.pdf")
