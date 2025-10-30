@@ -59,7 +59,7 @@ if menu == "Proposte":
 
     proponente = st.selectbox("Chi propone", GIOCATORI)
     bersaglio = st.selectbox("Chi riceve i punti", [g for g in GIOCATORI if g != proponente])
-    punti = st.number_input("Punti ratto (negativi = gesto buono)", min_value=-10.0, max_value=10.0, step=1.0)
+    punti = st.number_input("Punti ratto (negativi = gesto buono)", min_value=-50, max_value=50, step=1.0)
     punti = int(punti)
     motivazione = st.text_area("Motivazione")
 
