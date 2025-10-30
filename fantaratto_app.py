@@ -216,6 +216,7 @@ elif menu == "Classifica":
 elif menu == "Storico Proposte":
     st.header("📜 Storico delle proposte")
     proposte = supabase_get("proposte")
+    proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
     if proposte:
         df = pd.DataFrame(proposte)
         # mostriamo colonne coerenti con il DB
