@@ -13,8 +13,9 @@ FILE_VOTI = "voti.csv"
 # === FUNZIONI DI SUPPORTO ===
 def carica_csv(nome_file, colonne):
     if not os.path.exists(nome_file):
-        return pd.DataFrame(columns=colonne)
-    return pd.read_csv(nome_file)
+        # crea DataFrame con colonne corrette e tipi vuoti
+        return pd.DataFrame({col: pd.Series(dtype=str) for col in colonne})
+    return pd.read_csv(nome_file, dtype=str)  # forza tutte le colonne come stringa per sicurezza
 
 def salva_csv(df, nome_file):
     df.to_csv(nome_file, index=False)
@@ -36,15 +37,15 @@ if pagina == "Proponi Punti":
     motivazione = st.text_area("Motivazione")
     
     if st.button("Invia proposta"):
-        nuova_id = datetime.now().strftime("%Y%m%d%H%M%S")
+        nuova_id = datetime.now().strftime("%Y%m%d%H%M%S%f")  # ID unico
         nuova = {
             "id": nuova_id,
             "proponente": proponente,
             "bersaglio": bersaglio,
-            "punti": punti,
+            "punti": str(punti),
             "motivazione": motivazione,
             "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "approvata": False
+            "approvata": "False"
         }
         proposte = pd.concat([proposte, pd.DataFrame([nuova])], ignore_index=True)
         salva_csv(proposte, FILE_PROPOSTE)
@@ -54,7 +55,7 @@ if pagina == "Proponi Punti":
 elif pagina == "Vota Proposte":
     st.header("🗳️ Vota le proposte in sospeso")
     votante = st.selectbox("Chi sta votando?", GIOCATORI)
-    in_sospeso = proposte[proposte["approvata"] == False]
+    in_sospeso = proposte[proposte["approvata"] == "False"]
 
     if in_sospeso.empty:
         st.info("Nessuna proposta in attesa di votazione.")
@@ -83,20 +84,21 @@ elif pagina == "Vota Proposte":
             voti_proposta = voti[voti["proposta_id"] == pid]
             if len(voti_proposta["votante"].unique()) == len(GIOCATORI):
                 # Tutti hanno votato
-                if all(voti_proposta["voto"] == "Sì"):
-                    proposte.loc[proposte["id"] == pid, "approvata"] = True
+                if not voti_proposta.empty and all(voti_proposta["voto"] == "Sì"):
+                    proposte.loc[proposte["id"] == pid, "approvata"] = "True"
                     salva_csv(proposte, FILE_PROPOSTE)
                     st.success(f"🎉 Proposta {pid} approvata all'unanimità!")
 
 # === PAGINA: CLASSIFICA ===
 elif pagina == "Classifica":
     st.header("🏆 Classifica Ratto")
-    approvate = proposte[proposte["approvata"] == True]
+    approvate = proposte[proposte["approvata"] == "True"]
     if approvate.empty:
         st.info("Ancora nessuna proposta approvata.")
     else:
         punteggi = approvate.groupby("bersaglio")["punti"].sum().reset_index()
         punteggi.columns = ["Giocatore", "Totale punti ratto"]
+        punteggi["Totale punti ratto"] = punteggi["Totale punti ratto"].astype(int)
         punteggi = punteggi.sort_values("Totale punti ratto", ascending=False)
         st.table(punteggi)
 
