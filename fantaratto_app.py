@@ -10,7 +10,7 @@ st.set_page_config(page_title="Fantaratto Cloud", page_icon="🐀", layout="cent
 GIOCATORI = ["Ali","Ale","Ani","Catta","Corra","Dada","Gabbo","Giugi","Pippo","Ricky","Sert","Simo","Sofi"]
 
 PROJECT_URL = "https://kcakeewkrmxyldvcpdbe.supabase.co"
-API_KEY = "eyJh...BN4BD8"
+API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWtlZXdrcm14eWxkdmNwZGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4MjM0MjUsImV4cCI6MjA3NzM5OTQyNX0.-3vvufy6budEU-HwTU-4I0sNfRn7QWN0kad1bJN4BD8"
 TABLE = "proposte"
 
 headers = {
