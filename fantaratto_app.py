@@ -74,7 +74,7 @@ if menu == "Proposte":
                 "punti": punti,
                 "motivazione": motivazione,
                 "approvata": False,
-                "created_at": datetime.utcnow().isoformat()
+                "data": datetime.utcnow().isoformat()
             }
             res = supabase_insert("proposte", proposta)
             if res is not None and res.status_code in [200, 201]:
@@ -89,7 +89,7 @@ if menu == "Proposte":
         df = pd.DataFrame(proposte)
         # Normalizza colonne presenti
         cols = []
-        for c in ["proponente", "bersaglio", "punti", "motivazione", "approvata", "created_at"]:
+        for c in ["proponente", "bersaglio", "punti", "motivazione", "approvata", "data"]:
             if c in df.columns:
                 cols.append(c)
         st.dataframe(df[cols], use_container_width=True)
@@ -137,7 +137,7 @@ elif menu == "Votazioni":
                             "proposta_id": proposta_id,
                             "votante": votante,
                             "voto": True,
-                            "created_at": datetime.utcnow().isoformat()
+                            "data": datetime.utcnow().isoformat()
                         }
                         res = supabase_insert("voti", voto)
                         if res is not None and res.status_code in [200,201]:
@@ -152,7 +152,7 @@ elif menu == "Votazioni":
                             "proposta_id": proposta_id,
                             "votante": votante,
                             "voto": False,
-                            "created_at": datetime.utcnow().isoformat()
+                            "data": datetime.utcnow().isoformat()
                         }
                         res = supabase_insert("voti", voto)
                         if res is not None and res.status_code in [200,201]:
@@ -209,7 +209,7 @@ elif menu == "Storico Proposte":
         df = pd.DataFrame(proposte)
         # mostriamo colonne coerenti con il DB
         display_cols = []
-        for c in ["proponente", "bersaglio", "punti", "motivazione", "approvata", "created_at"]:
+        for c in ["proponente", "bersaglio", "punti", "motivazione", "approvata", "data"]:
             if c in df.columns:
                 display_cols.append(c)
         st.dataframe(df[display_cols], use_container_width=True)
