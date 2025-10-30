@@ -14,6 +14,15 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# test connessione
+try:
+    res = supabase.table("proposte").select("*").limit(1).execute()
+    st.success("✅ Connessione a Supabase OK!")
+    st.write(res.data)
+except Exception as e:
+    st.error(f"❌ Errore connessione: {e}")
+
+
 # --- FUNZIONI ---
 def carica_proposte():
     res = supabase.table("proposte").select("*").execute()
