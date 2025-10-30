@@ -180,12 +180,16 @@ elif menu == "Votazioni":
 # =======================
 # SEZIONE CLASSIFICA
 # =======================
+# =======================
+# SEZIONE CLASSIFICA
+# =======================
 elif menu == "Classifica":
     st.header("🏆 Classifica Ratto")
 
     proposte = supabase_get("proposte")
     punteggi = {g: 0 for g in GIOCATORI}
 
+    # Somma i punti delle proposte approvate
     for p in proposte:
         if isinstance(p, dict) and p.get("approvata"):
             try:
@@ -196,8 +200,18 @@ elif menu == "Classifica":
             if bers in punteggi:
                 punteggi[bers] += punti_val
 
-    df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"]).sort_values("Punti Ratto", ascending=False)
-    st.dataframe(df, use_container_width=True)
+    # DataFrame e calcolo ranking (parte da 1)
+    df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"])
+
+    # usa "dense" ranking: stesso punteggio => stessa posizione; le posizioni partono da 1
+    df["Rank"] = df["Punti Ratto"].rank(method="dense", ascending=False).astype(int)
+
+    # ordina per Rank (poi per punti per essere chiari), e resetta indice
+    df = df.sort_values(["Rank", "Punti Ratto"], ascending=[True, False]).reset_index(drop=True)
+
+    # mostra con Rank come prima colonna (senza l'indice numerico 0..)
+    st.dataframe(df[["Rank", "Giocatore", "Punti Ratto"]], use_container_width=True)
+
 
 # =======================
 # SEZIONE STORICO
