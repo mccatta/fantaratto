@@ -141,15 +141,19 @@ elif menu == "Votazioni":
                     st.error("Hai rifiutato la proposta ❌")
 
             # Ricontrolla voti dopo ogni azione
-            voti = supabase_get("voti")
-            voti_assoc = [v for v in voti if v["proposta_id"] == p["id"]]
-          # Assumiamo che 'voti_assoc' sia la lista dei voti per la proposta 'p'
-# e 'GIOCATORI' sia la lista completa dei giocatori
+          # Recupera tutti i voti della proposta corrente
+voti = supabase_get("voti")
+voti_assoc = [v for v in voti if v["proposta_id"] == p["id"]]
 
-votanti_unici = {v["votante"] for v in voti_assoc}
+# Ricava i votanti unici (solo se ci sono voti)
+if voti_assoc:
+    votanti_unici = {v.get("votante") for v in voti_assoc}
+else:
+    votanti_unici = set()
 
+# Applica la regola della maggioranza solo se tutti hanno votato
 if len(votanti_unici) == len(GIOCATORI):
-    yes_votes = sum(1 for v in voti_assoc if v["voto"])
+    yes_votes = sum(1 for v in voti_assoc if v.get("voto"))
     approvata = yes_votes > len(GIOCATORI) / 2
     supabase_patch("proposte", "id", p["id"], {"approvata": approvata})
 
@@ -157,6 +161,7 @@ if len(votanti_unici) == len(GIOCATORI):
         st.success("🎉 Proposta approvata dalla maggioranza!")
     else:
         st.info("❌ Proposta bocciata dalla maggioranza.")
+
 
 
 # =======================
