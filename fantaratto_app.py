@@ -73,7 +73,6 @@ if menu == "Proposte":
                 "bersaglio": bersaglio,
                 "punti": punti,
                 "motivazione": motivazione,
-                "data": datetime.utcnow().isoformat(),
                 "approvata": False
             }
             res = supabase_insert("proposte", proposta)
