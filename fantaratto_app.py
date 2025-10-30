@@ -232,13 +232,6 @@ for p in proposte:
                         st.info("❌ Proposta bocciata dalla maggioranza.")
                 # ricarica proposte per aggiornare UI
                 proposte = supabase_get("proposte")
-
-# =======================
-# SEZIONE CLASSIFICA
-# =======================
-# =======================
-# SEZIONE CLASSIFICA (Opzione A: nasconde indice)
-# =======================
 # =======================
 # SEZIONE CLASSIFICA (Opzione B: Rank come indice)
 # =======================
