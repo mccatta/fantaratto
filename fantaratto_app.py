@@ -145,7 +145,7 @@ elif menu == "Votazioni":
             voti_assoc = [v for v in voti if v["proposta_id"] == p["id"]]
             votanti_unici = {v["votante"] for v in voti_assoc}
 
-           if len(votanti_unici) == len(GIOCATORI):
+         if len(votanti_unici) == len(GIOCATORI):
     yes_votes = sum(1 for v in voti_assoc if v["voto"])
     approvata = yes_votes > len(GIOCATORI)/2
     supabase_patch("proposte", "id", p["id"], {"approvata": approvata})
@@ -153,6 +153,7 @@ elif menu == "Votazioni":
         st.success("🎉 Proposta approvata dalla maggioranza!")
     else:
         st.info("❌ Proposta bocciata dalla maggioranza.")
+
 
 
 # =======================
