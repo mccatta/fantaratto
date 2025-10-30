@@ -183,6 +183,9 @@ elif menu == "Votazioni":
 # =======================
 # SEZIONE CLASSIFICA (Opzione A: nasconde indice)
 # =======================
+# =======================
+# SEZIONE CLASSIFICA (Opzione B: Rank come indice)
+# =======================
 elif menu == "Classifica":
     st.header("🏆 Classifica Ratto")
 
@@ -203,9 +206,8 @@ elif menu == "Classifica":
     df["Rank"] = df["Punti Ratto"].rank(method="dense", ascending=False).astype(int)
     df = df.sort_values(["Rank", "Punti Ratto"], ascending=[True, False]).reset_index(drop=True)
 
-    display_df = df[["Rank", "Giocatore", "Punti Ratto"]]
-    # usa Styler per nascondere l'indice numerico 0..N
-    st.dataframe(display_df.style.hide_index(), use_container_width=True)
+    display_df = df[["Rank", "Giocatore", "Punti Ratto"]].set_index("Rank")
+    st.dataframe(display_df, use_container_width=True)
 
 # =======================
 # SEZIONE STORICO
