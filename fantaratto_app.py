@@ -144,29 +144,35 @@ elif menu == "Votazioni":
                 st.subheader(f"{p['proponente']} → {p['bersaglio']} ({p['punti']} punti)")
                 st.write(p["motivazione"])
 
-                col1, col2 = st.columns(2)
-                with col1:
+               col1, col2 = st.columns(2)
+               with col1:
                     if st.button("👍 Approva", key=f"yes_{p['id']}_{votante}"):
-                        voto = {
-                            "id": str(uuid.uuid4()),
-                            "proposta_id": p["id"],
-                            "votante": votante,
-                            "voto": True
-                        }
-                        supabase_insert("voti", voto)
-                        st.success("Hai approvato la proposta ✅")
-                        st.experimental_rerun()
-                with col2:
-                    if st.button("👎 Rifiuta", key=f"no_{p['id']}_{votante}"):
-                        voto = {
-                            "id": str(uuid.uuid4()),
-                            "proposta_id": p["id"],
-                            "votante": votante,
-                            "voto": False
-                        }
-                        supabase_insert("voti", voto)
-                        st.error("Hai rifiutato la proposta ❌")
-                        st.experimental_rerun()
+                      voto = {
+                       "id": str(uuid.uuid4()),
+                       "proposta_id": p["id"],
+                        "votante": votante,
+                        "voto": True
+                         }
+                          supabase_insert("voti", voto)
+                          st.success("Hai approvato la proposta ✅")
+                             st.session_state["refresh"] = True
+
+       with col2:
+            if st.button("👎 Rifiuta", key=f"no_{p['id']}_{votante}"):
+                voto = {
+               "id": str(uuid.uuid4()),
+               "proposta_id": p["id"],
+              "votante": votante,
+               "voto": False
+                  }
+                 supabase_insert("voti", voto)
+                    st.error("Hai rifiutato la proposta ❌")
+                 st.session_state["refresh"] = True
+
+# Ricarica leggera dopo il voto
+if st.session_state.get("refresh", False):
+    st.session_state["refresh"] = False
+    st.rerun()
 
         # =======================
         # PROPOSTE VOTATE (IN ATTESA)
