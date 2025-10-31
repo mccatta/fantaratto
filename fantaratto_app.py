@@ -116,20 +116,23 @@ elif menu == "Votazioni":
     if not proposte:
         st.info("Nessuna proposta presente.")
     else:
-        # Ordina le proposte in base alla data (più recente prima)
+        # Ordina per data (più recente prima, se presente)
         proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
 
-        # Proposte su cui il giocatore NON ha ancora votato
+        # Divide le proposte in categorie
         proposte_non_votate = [
             p for p in proposte
-            if not p.get("approvata") and not any(v for v in voti if v.get("proposta_id") == p.get("id") and v.get("votante") == votante)
+            if not p.get("approvata")
+            and not any(v for v in voti if v.get("proposta_id") == p.get("id") and v.get("votante") == votante)
         ]
 
-        # Proposte su cui il giocatore HA votato ma non ancora decise
         proposte_votate_attesa = [
             p for p in proposte
-            if not p.get("approvata") and any(v for v in voti if v.get("proposta_id") == p.get("id") and v.get("votante") == votante)
+            if not p.get("approvata")
+            and any(v for v in voti if v.get("proposta_id") == p.get("id") and v.get("votante") == votante)
         ]
+
+        proposte_concluse = [p for p in proposte if p.get("approvata") is not None]
 
         # =======================
         # PROPOSTE DA VOTARE
@@ -144,41 +147,41 @@ elif menu == "Votazioni":
                 st.subheader(f"{p['proponente']} → {p['bersaglio']} ({p['punti']} punti)")
                 st.write(p["motivazione"])
 
-               col1, col2 = st.columns(2)
-               with col1:
+                col1, col2 = st.columns(2)
+                with col1:
                     if st.button("👍 Approva", key=f"yes_{p['id']}_{votante}"):
-                      voto = {
-                       "id": str(uuid.uuid4()),
-                       "proposta_id": p["id"],
-                        "votante": votante,
-                        "voto": True
-                         }
-                          supabase_insert("voti", voto)
-                          st.success("Hai approvato la proposta ✅")
-                             st.session_state["refresh"] = True
+                        voto = {
+                            "id": str(uuid.uuid4()),
+                            "proposta_id": p["id"],
+                            "votante": votante,
+                            "voto": True
+                        }
+                        supabase_insert("voti", voto)
+                        st.success("Hai approvato la proposta ✅")
+                        st.session_state["refresh"] = True
 
-       with col2:
-            if st.button("👎 Rifiuta", key=f"no_{p['id']}_{votante}"):
-                voto = {
-               "id": str(uuid.uuid4()),
-               "proposta_id": p["id"],
-              "votante": votante,
-               "voto": False
-                  }
-                 supabase_insert("voti", voto)
-                    st.error("Hai rifiutato la proposta ❌")
-                 st.session_state["refresh"] = True
+                with col2:
+                    if st.button("👎 Rifiuta", key=f"no_{p['id']}_{votante}"):
+                        voto = {
+                            "id": str(uuid.uuid4()),
+                            "proposta_id": p["id"],
+                            "votante": votante,
+                            "voto": False
+                        }
+                        supabase_insert("voti", voto)
+                        st.error("Hai rifiutato la proposta ❌")
+                        st.session_state["refresh"] = True
 
-# Ricarica leggera dopo il voto
-if st.session_state.get("refresh", False):
-    st.session_state["refresh"] = False
-    st.rerun()
+            # 🔁 Ricarica dopo voto
+            if st.session_state.get("refresh", False):
+                st.session_state["refresh"] = False
+                st.rerun()
 
         # =======================
         # PROPOSTE VOTATE (IN ATTESA)
         # =======================
         st.markdown("---")
-        st.subheader("🕓 Proposte votate (in attesa di approvazione finale)")
+        st.subheader("🕓 Proposte votate (in attesa di esito)")
 
         if not proposte_votate_attesa:
             st.info("Non ci sono proposte in attesa di esito.")
@@ -191,7 +194,7 @@ if st.session_state.get("refresh", False):
         # =======================
         # CONTROLLO MAGGIORANZA
         # =======================
-        voti = supabase_get("voti")  # Aggiornamento voti globale
+        voti = supabase_get("voti")  # aggiorna lista voti
         for p in proposte:
             if p.get("approvata"):
                 continue
@@ -211,7 +214,6 @@ if st.session_state.get("refresh", False):
                     st.success(f"🎉 La proposta '{p['motivazione']}' è stata approvata!")
                 else:
                     st.info(f"❌ La proposta '{p['motivazione']}' è stata bocciata.")
-
 
 # =======================
 # SEZIONE CLASSIFICA (Opzione B: Rank come indice)
