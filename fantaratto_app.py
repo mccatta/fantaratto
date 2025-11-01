@@ -244,20 +244,45 @@ elif menu == "Classifica":
 # =======================
 # SEZIONE STORICO
 # =======================
-elif menu == "Storico Proposte":
-    st.header("📜 Storico delle proposte")
+elif menu == "Storico proposte":
+    st.header("📜 Storico proposte")
+
     proposte = supabase_get("proposte")
-    proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
-    if proposte:
-        df = pd.DataFrame(proposte)
-        # mostriamo colonne coerenti con il DB
-        display_cols = []
-        for c in ["proponente", "bersaglio", "punti", "motivazione", "approvata", "data"]:
-            if c in df.columns:
-                display_cols.append(c)
-        st.dataframe(df[display_cols], use_container_width=True)
+
+    if not proposte:
+        st.info("Nessuna proposta ancora registrata.")
     else:
-        st.info("Nessuna proposta presente.")
+        # Ordina per data (più recente prima)
+        proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
+
+        for p in proposte:
+            stato = p.get("approvata")
+
+            if stato is True:
+                icona = "✅"
+                colore = "green"
+                testo = "Approvata"
+            elif stato is False:
+                icona = "❌"
+                colore = "red"
+                testo = "Rifiutata"
+            else:
+                icona = "🕓"
+                colore = "gray"
+                testo = "In attesa"
+
+            st.markdown(
+                f"""
+                <div style='border:1px solid #ddd; border-radius:10px; padding:10px; margin-bottom:10px;'>
+                    <h4 style='margin:0;'>{icona} <span style='color:{colore};'>{testo}</span></h4>
+                    <b>{p['proponente']}</b> → <b>{p['bersaglio']}</b> ({p['punti']} punti)<br>
+                    <i>{p['motivazione']}</i><br>
+                    <small>Data: {p.get('data','')}</small>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
 
 # =======================
 # SEZIONE COSTITUZIONE
