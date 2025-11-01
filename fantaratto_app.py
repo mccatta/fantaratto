@@ -244,17 +244,18 @@ elif menu == "Classifica":
 # =======================
 # SEZIONE STORICO
 # =======================
-elif menu == "Storico proposte":
-    st.header("📜 Storico proposte")
+elif menu == "Storico Proposte":
+    st.header("📜 Storico delle proposte")
 
     proposte = supabase_get("proposte")
 
     if not proposte:
-        st.info("Nessuna proposta ancora registrata.")
+        st.info("Nessuna proposta presente.")
     else:
-        # Ordina per data (più recente prima)
-        proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
+        # Ordina dalla più recente alla più vecchia usando l'ID (che è un UUID, ma se hai un campo data meglio)
+        proposte = list(reversed(proposte))
 
+        st.subheader("📅 Tutte le proposte")
         for p in proposte:
             stato = p.get("approvata")
 
@@ -274,10 +275,11 @@ elif menu == "Storico proposte":
             st.markdown(
                 f"""
                 <div style='border:1px solid #ddd; border-radius:10px; padding:10px; margin-bottom:10px;'>
-                    <h4 style='margin:0;'>{icona} <span style='color:{colore};'>{testo}</span></h4>
-                    <b>{p['proponente']}</b> → <b>{p['bersaglio']}</b> ({p['punti']} punti)<br>
-                    <i>{p['motivazione']}</i><br>
-                    <small>Data: {p.get('data','')}</small>
+                    <h4 style='margin:0 0 5px 0;'>{icona} <span style='color:{colore};'>{testo}</span></h4>
+                    <b>Proponente:</b> {p.get('proponente', '—')}<br>
+                    <b>Bersaglio:</b> {p.get('bersaglio', '—')}<br>
+                    <b>Punti:</b> {p.get('punti', 0)}<br>
+                    <b>Motivazione:</b> {p.get('motivazione', '')}
                 </div>
                 """,
                 unsafe_allow_html=True
