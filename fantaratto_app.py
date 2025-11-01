@@ -252,8 +252,15 @@ elif menu == "Storico Proposte":
     if not proposte:
         st.info("Nessuna proposta presente.")
     else:
-        # Ordina dalla più recente alla più vecchia usando l'ID (che è un UUID, ma se hai un campo data meglio)
-        proposte = list(reversed(proposte))
+        # Converte la data in datetime per ordinare correttamente
+        for p in proposte:
+            try:
+                p["data"] = datetime.fromisoformat(p["data"])
+            except Exception:
+                p["data"] = datetime.min  # in caso di errore, metti una data base
+
+        # Ordina dalla più recente alla più vecchia
+        proposte = sorted(proposte, key=lambda x: x["data"], reverse=True)
 
         st.subheader("📅 Tutte le proposte")
         for p in proposte:
@@ -272,6 +279,8 @@ elif menu == "Storico Proposte":
                 colore = "gray"
                 testo = "In attesa"
 
+            data_str = p["data"].strftime("%d/%m/%Y %H:%M")
+
             st.markdown(
                 f"""
                 <div style='border:1px solid #ddd; border-radius:10px; padding:10px; margin-bottom:10px;'>
@@ -279,11 +288,13 @@ elif menu == "Storico Proposte":
                     <b>Proponente:</b> {p.get('proponente', '—')}<br>
                     <b>Bersaglio:</b> {p.get('bersaglio', '—')}<br>
                     <b>Punti:</b> {p.get('punti', 0)}<br>
-                    <b>Motivazione:</b> {p.get('motivazione', '')}
+                    <b>Motivazione:</b> {p.get('motivazione', '')}<br>
+                    <b>📅 Data:</b> {data_str}
                 </div>
                 """,
                 unsafe_allow_html=True
             )
+
 
 
 # =======================
