@@ -328,4 +328,6 @@ elif menu == "Costituzione":
     st.markdown(f"[📥 Scarica Costituzione PDF]({pdf_url})")
 
     # Mostra direttamente il PDF nella pagina
-    st.components.v1.iframe(pdf_url, height=600)
+    google_viewer_url = f"https://docs.google.com/gview?url={pdf_url}&embedded=true"
+    st.components.v1.iframe(google_viewer_url, height=600)
+
