@@ -301,6 +301,31 @@ elif menu == "Storico Proposte":
 # =======================
 elif menu == "Costituzione":
     st.header("📜 Costituzione del Fantaratto")
-    pdf = st.file_uploader("Carica la Costituzione (PDF)", type=["pdf"])
-    if pdf:
-        st.download_button("📥 Scarica Costituzione", pdf, file_name="costituzione_fantaratto.pdf")
+
+    pdf_file = st.file_uploader("Carica la Costituzione (PDF)", type=["pdf"])
+
+    if pdf_file is not None:
+        # Salva su Supabase Storage
+        upload_url = f"{SUPABASE_URL}/storage/v1/object/costituzione/costituzione_fantaratto.pdf"
+        res = requests.post(
+            upload_url,
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/pdf"
+            },
+            data=pdf_file.getvalue()
+        )
+
+        if res.status_code in [200, 201]:
+            st.success("📄 Costituzione caricata con successo!")
+        else:
+            st.error(f"Errore nel caricamento: {res.text}")
+
+    # Mostra sempre il PDF se esiste
+    pdf_url = f"{SUPABASE_URL}/storage/v1/object/public/costituzione/costituzione_fantaratto.pdf"
+    st.markdown("### Visualizza Costituzione:")
+    st.markdown(f"[📥 Scarica Costituzione PDF]({pdf_url})")
+
+    # Mostra direttamente il PDF nella pagina
+    st.components.v1.iframe(pdf_url, height=600)
