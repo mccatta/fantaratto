@@ -168,7 +168,7 @@ elif menu == "Votazioni":
 
          voti_assoc = [v for v in voti if v.get("proposta_id") == p["id"]]
          if not voti_assoc:
-         continue
+            continue
 
         yes_votes = sum(1 for v in voti_assoc if v.get("voto") is True)
         no_votes = sum(1 for v in voti_assoc if v.get("voto") is False)
