@@ -162,30 +162,36 @@ elif menu == "Votazioni":
         st.write(p["motivazione"])
         st.caption(f"🕓 In attesa — voti mancanti di: {', '.join(mancanti) if mancanti else 'nessuno'}")
         
-    # === CONTROLLO AUTOMATICO APPROVAZIONE / RIFIUTO ===
-    for p in proposte:
-        if p.get("approvata") in [True, False]:
-            continue  # già decisa
+# === CONTROLLO AUTOMATICO APPROVAZIONE / RIFIUTO ===
+for p in proposte:
+    # Salta se è già stata decisa
+    if p.get("approvata") in [True, False]:
+        continue
 
-        voti_assoc = [v for v in voti if v.get("proposta_id") == p["id"]]
-        if not voti_assoc:
-            continue
+    proposta_id = p.get("id")
+    voti_assoc = [v for v in voti if v.get("proposta_id") == proposta_id]
+    if not voti_assoc:
+        continue
 
-        yes_votes = sum(1 for v in voti_assoc if v.get("voto") is True)
-        no_votes = sum(1 for v in voti_assoc if v.get("voto") is False)
-        total_votes = yes_votes + no_votes
+    yes_votes = sum(1 for v in voti_assoc if v.get("voto") is True)
+    no_votes = sum(1 for v in voti_assoc if v.get("voto") is False)
+    total_votes = yes_votes + no_votes
 
-        # Solo se almeno metà dei giocatori ha votato
-        if total_votes >= len(GIOCATORI) / 2:
-            if yes_votes > no_votes:
-                approvata = True
-            elif no_votes > yes_votes:
-                approvata = False
-            else:
-                approvata = None  # parità → ancora in attesa
+    # Calcola maggioranza assoluta
+    if total_votes >= len(GIOCATORI) / 2:  # almeno metà hanno votato
+        if yes_votes > no_votes:
+            approvata = True
+        elif no_votes > yes_votes:
+            approvata = False
+        else:
+            continue  # Parità → non decidere ancora
 
-            if approvata is not None:
-                supabase_patch("proposte", "id", p["id"], {"approvata": approvata})
+        res = supabase_patch("proposte", "id", proposta_id, {"approvata": approvata})
+        if res:
+            stato = "approvata" if approvata else "rifiutata"
+            st.success(f"✅ Proposta di {p['proponente']} → {p['bersaglio']} {stato}")
+        else:
+            st.error(f"Errore aggiornamento proposta {p['id']}")
 
     # === PROPOSTE CON ESITO (approvate o rifiutate) ===
     st.subheader("📜 Proposte concluse")
@@ -205,6 +211,7 @@ elif menu == "Votazioni":
 # =======================
 # SEZIONE CLASSIFICA
 # =======================
+# === CLASSIFICA ===
 elif menu == "Classifica":
     st.header("🏆 Classifica Ratto")
 
@@ -216,10 +223,11 @@ elif menu == "Classifica":
             punteggi[p["bersaglio"]] += int(p["punti"])
 
     df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"])
-    df["Posizione"] = range(1, len(df) + 1)
     df = df.sort_values("Punti Ratto", ascending=False).reset_index(drop=True)
-    st.dataframe(df[["Posizione", "Giocatore", "Punti Ratto"]], use_container_width=True)
+    df.index = df.index + 1  # parte da 1, non da 0
+    df.index.name = "Posizione"
 
+    st.dataframe(df, use_container_width=True)
 
 # =======================
 # SEZIONE STORICO
