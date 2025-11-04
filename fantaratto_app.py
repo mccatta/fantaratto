@@ -162,7 +162,7 @@ elif menu == "Votazioni":
         st.write(p["motivazione"])
         st.caption(f"🕓 In attesa — voti mancanti di: {', '.join(mancanti) if mancanti else 'nessuno'}")
         
- # === CONTROLLO AUTOMATICO APPROVAZIONE / RIFIUTO ===
+# === CONTROLLO AUTOMATICO APPROVAZIONE / RIFIUTO ===
 for p in proposte:
     if p.get("approvata") in [True, False]:
         continue  # già decisa
