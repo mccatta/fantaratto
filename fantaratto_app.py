@@ -102,11 +102,30 @@ if menu == "Proposte":
 elif menu == "Votazioni":
     st.header("🗳️ Sezione Votazioni")
 
+    # Carica i dati in sicurezza
+    try:
+        proposte = carica_proposte() or []
+        voti = carica_voti() or []
+    except Exception as e:
+        st.error(f"Errore nel caricamento dei dati: {e}")
+        st.stop()
+
     # Seleziona il nome del votante
     votante = st.selectbox("Seleziona il tuo nome per votare:", [""] + GIOCATORI)
     if not votante:
         st.warning("👆 Seleziona il tuo nome per procedere con le votazioni.")
         st.stop()
+
+    # Se non ci sono proposte
+    if not proposte:
+        st.info("Non ci sono proposte al momento.")
+        st.stop()
+
+    # === PROPOSTE ATTIVE ===
+    st.subheader("🟢 Proposte attive (non hai ancora votato)")
+    attive = [p for p in proposte if not p.get("approvata")]
+    attive = sorted(attive, key=lambda x: x["data"], reverse=True)
+
 
     # === PROPOSTE ATTIVE ===
     st.subheader("🟢 Proposte attive (non hai ancora votato)")
