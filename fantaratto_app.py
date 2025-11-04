@@ -176,19 +176,33 @@ elif menu == "Votazioni":
                 st.session_state["refresh"] = False
                 st.rerun()
 
-        # =======================
-        # PROPOSTE VOTATE (IN ATTESA)
-        # =======================
-        st.markdown("---")
-        st.subheader("🕓 Proposte votate (in attesa di esito)")
+       # =======================
+# PROPOSTE IN ATTESA DI ESITO
+# =======================
+st.subheader("⏳ Proposte in attesa di esito")
+in_attesa = [p for p in proposte if not p.get("approvata") and any(v["proposta_id"] == p["id"] for v in voti)]
 
-        if not proposte_votate_attesa:
-            st.info("Non ci sono proposte in attesa di esito.")
+if in_attesa:
+    for p in in_attesa:
+        st.markdown(f"**{p['proponente']} → {p['bersaglio']}** ({p['punti']} punti)")
+        st.caption(p["motivazione"])
+
+        # Trova chi ha votato
+        voti_assoc = [v for v in voti if v["proposta_id"] == p["id"]]
+        votanti_unici = {v["votante"] for v in voti_assoc if v.get("votante")}
+
+        # Calcola chi manca
+        mancanti = [g for g in GIOCATORI if g not in votanti_unici]
+
+        if mancanti:
+            mancanti_str = ", ".join(mancanti)
+            st.info(f"🕓 **Voti mancanti di:** {mancanti_str}")
         else:
-            for p in proposte_votate_attesa:
-                st.divider()
-                st.markdown(f"**{p['proponente']} → {p['bersaglio']}**  ({p['punti']} punti)")
-                st.caption(f"Motivazione: {p['motivazione']}")
+            st.success("✅ Tutti hanno votato — in attesa di calcolo risultato.")
+
+        st.divider()
+else:
+    st.info("Nessuna proposta in attesa di esito.")
 
         # =======================
         # CONTROLLO MAGGIORANZA
