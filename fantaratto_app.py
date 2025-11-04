@@ -161,17 +161,31 @@ elif menu == "Votazioni":
         st.subheader(f"{p['proponente']} → {p['bersaglio']} ({p['punti']} punti)")
         st.write(p["motivazione"])
         st.caption(f"🕓 In attesa — voti mancanti di: {', '.join(mancanti) if mancanti else 'nessuno'}")
-    # === CONTROLLO AUTOMATICO APPROVAZIONE / RIFIUTO ===
-    for p in proposte:
-        if p.get("approvata") in [True, False]:
-            continue  # già decisa
+  # === CONTROLLO AUTOMATICO APPROVAZIONE / RIFIUTO ===
+for p in proposte:
+    if p.get("approvata") in [True, False]:
+        continue  # già decisa
 
-        voti_assoc = [v for v in voti if v.get("proposta_id") == p["id"]]
-        votanti_unici = {v.get("votante") for v in voti_assoc if v.get("votante")}
-        if len(votanti_unici) == len(GIOCATORI):
-            yes_votes = sum(1 for v in voti_assoc if v.get("voto"))
-            approvata = yes_votes > len(GIOCATORI) / 2
+    voti_assoc = [v for v in voti if v.get("proposta_id") == p["id"]]
+    if not voti_assoc:
+        continue
+
+    yes_votes = sum(1 for v in voti_assoc if v.get("voto") is True)
+    no_votes = sum(1 for v in voti_assoc if v.get("voto") is False)
+    total_votes = yes_votes + no_votes
+
+    # Solo se almeno metà dei giocatori ha votato
+    if total_votes >= len(GIOCATORI) / 2:
+        if yes_votes > no_votes:
+            approvata = True
+        elif no_votes > yes_votes:
+            approvata = False
+        else:
+            approvata = None  # parità, resta in attesa
+
+        if approvata is not None:
             supabase_patch("proposte", "id", p["id"], {"approvata": approvata})
+
 
     # === PROPOSTE CON ESITO (approvate o rifiutate) ===
     st.subheader("📜 Proposte concluse")
