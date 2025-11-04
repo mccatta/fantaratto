@@ -100,133 +100,91 @@ if menu == "Proposte":
 # SEZIONE VOTAZIONI
 # =======================
 elif menu == "Votazioni":
-    st.header("🗳️ Vota le proposte")
+    st.header("🗳️ Sezione Votazioni")
 
-    # Selezione del votante
-    votante = st.selectbox("Chi sta votando?", ["-- Seleziona il tuo nome --"] + GIOCATORI)
-    if votante == "-- Seleziona il tuo nome --":
-        st.info("👆 Seleziona il tuo nome per visualizzare le proposte da votare.")
+    # Seleziona il nome del votante
+    votante = st.selectbox("Seleziona il tuo nome per votare:", [""] + GIOCATORI)
+    if not votante:
+        st.warning("👆 Seleziona il tuo nome per procedere con le votazioni.")
         st.stop()
 
-    # Recupera proposte e voti dal database
-    proposte = supabase_get("proposte")
-    voti = supabase_get("voti")
+    # === PROPOSTE ATTIVE ===
+    st.subheader("🟢 Proposte attive (non hai ancora votato)")
+    attive = [p for p in proposte if not p.get("approvata")]
+    attive = sorted(attive, key=lambda x: x["data"], reverse=True)
 
-    if not proposte:
-        st.info("Nessuna proposta presente.")
-    else:
-        # Ordina per data (più recente prima, se presente)
-        proposte = sorted(proposte, key=lambda x: x.get("data", ""), reverse=True)
-
-        # Divide le proposte in categorie
-        proposte_non_votate = [
-            p for p in proposte
-            if not p.get("approvata")
-            and not any(v for v in voti if v.get("proposta_id") == p.get("id") and v.get("votante") == votante)
-        ]
-
-        proposte_votate_attesa = [
-            p for p in proposte
-            if not p.get("approvata")
-            and any(v for v in voti if v.get("proposta_id") == p.get("id") and v.get("votante") == votante)
-        ]
-
-        proposte_concluse = [p for p in proposte if p.get("approvata") is not None]
-
-        # =======================
-        # PROPOSTE DA VOTARE
-        # =======================
-        st.subheader("🟢 Proposte attive da votare")
-
-        if not proposte_non_votate:
-            st.info("Hai già votato tutte le proposte attive 👏")
-        else:
-            for p in proposte_non_votate:
-                st.divider()
-                st.subheader(f"{p['proponente']} → {p['bersaglio']} ({p['punti']} punti)")
-                st.write(p["motivazione"])
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("👍 Approva", key=f"yes_{p['id']}_{votante}"):
-                        voto = {
-                            "id": str(uuid.uuid4()),
-                            "proposta_id": p["id"],
-                            "votante": votante,
-                            "voto": True
-                        }
-                        supabase_insert("voti", voto)
-                        st.success("Hai approvato la proposta ✅")
-                        st.session_state["refresh"] = True
-
-                with col2:
-                    if st.button("👎 Rifiuta", key=f"no_{p['id']}_{votante}"):
-                        voto = {
-                            "id": str(uuid.uuid4()),
-                            "proposta_id": p["id"],
-                            "votante": votante,
-                            "voto": False
-                        }
-                        supabase_insert("voti", voto)
-                        st.error("Hai rifiutato la proposta ❌")
-                        st.session_state["refresh"] = True
-
-            # 🔁 Ricarica dopo voto
-            if st.session_state.get("refresh", False):
-                st.session_state["refresh"] = False
-                st.rerun()
-
-       # =======================
-# PROPOSTE IN ATTESA DI ESITO
-# =======================
-st.subheader("⏳ Proposte in attesa di esito")
-in_attesa = [p for p in proposte if not p.get("approvata") and any(v["proposta_id"] == p["id"] for v in voti)]
-
-if in_attesa:
-    for p in in_attesa:
-        st.markdown(f"**{p['proponente']} → {p['bersaglio']}** ({p['punti']} punti)")
-        st.caption(p["motivazione"])
-
-        # Trova chi ha votato
+    mostrata_attiva = False
+    for p in attive:
         voti_assoc = [v for v in voti if v["proposta_id"] == p["id"]]
         votanti_unici = {v["votante"] for v in voti_assoc if v.get("votante")}
 
-        # Calcola chi manca
-        mancanti = [g for g in GIOCATORI if g not in votanti_unici]
+        if votante not in votanti_unici:
+            mostrata_attiva = True
+            st.markdown(f"**{p['proponente']} → {p['bersaglio']}** ({p['punti']} punti)")
+            st.caption(p["motivazione"])
 
-        if mancanti:
-            mancanti_str = ", ".join(mancanti)
-            st.info(f"🕓 **Voti mancanti di:** {mancanti_str}")
-        else:
-            st.success("✅ Tutti hanno votato — in attesa di calcolo risultato.")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("👍 Approva", key=f"approva_{p['id']}"):
+                    inserisci_voto(p["id"], votante, True)
+                    st.success("Voto registrato!")
+                    st.experimental_rerun()
+            with col2:
+                if st.button("👎 Rifiuta", key=f"rifiuta_{p['id']}"):
+                    inserisci_voto(p["id"], votante, False)
+                    st.error("Voto registrato!")
+                    st.experimental_rerun()
 
-        st.divider()
-else:
-    st.info("Nessuna proposta in attesa di esito.")
+            st.divider()
 
-        # =======================
-        # CONTROLLO MAGGIORANZA
-        # =======================
-        voti = supabase_get("voti")  # aggiorna lista voti
-        for p in proposte:
-            if p.get("approvata"):
-                continue
-            proposta_id = p.get("id")
-            if not proposta_id:
-                continue
+    if not mostrata_attiva:
+        st.info("Hai già votato per tutte le proposte attive.")
 
-            voti_assoc = [v for v in voti if v.get("proposta_id") == proposta_id]
-            votanti_unici = {v.get("votante") for v in voti_assoc if v.get("votante")}
+    # === PROPOSTE IN ATTESA DI ESITO ===
+    st.subheader("⏳ Proposte in attesa di esito")
+    in_attesa = [
+        p for p in proposte
+        if not p.get("approvata") and any(v["proposta_id"] == p["id"] for v in voti)
+    ]
+    in_attesa = sorted(in_attesa, key=lambda x: x["data"], reverse=True)
 
-            if len(votanti_unici) == len(GIOCATORI):
-                yes_votes = sum(1 for v in voti_assoc if v.get("voto"))
-                approvata = yes_votes > len(GIOCATORI) / 2
-                supabase_patch("proposte", "id", proposta_id, {"approvata": approvata})
+    if in_attesa:
+        for p in in_attesa:
+            st.markdown(f"**{p['proponente']} → {p['bersaglio']}** ({p['punti']} punti)")
+            st.caption(p["motivazione"])
 
-                if approvata:
-                    st.success(f"🎉 La proposta '{p['motivazione']}' è stata approvata!")
-                else:
-                    st.info(f"❌ La proposta '{p['motivazione']}' è stata bocciata.")
+            # Trova chi ha votato
+            voti_assoc = [v for v in voti if v["proposta_id"] == p["id"]]
+            votanti_unici = {v["votante"] for v in voti_assoc if v.get("votante")}
+
+            # Calcola chi manca
+            mancanti = [g for g in GIOCATORI if g not in votanti_unici]
+
+            if mancanti:
+                mancanti_str = ", ".join(mancanti)
+                st.info(f"🕓 **Voti mancanti di:** {mancanti_str}")
+            else:
+                st.success("✅ Tutti hanno votato — in attesa di calcolo risultato.")
+
+            st.divider()
+    else:
+        st.info("Nessuna proposta in attesa di esito.")
+
+    # === PROPOSTE CONCLUSE ===
+    st.subheader("📜 Proposte passate")
+    concluse = [p for p in proposte if p.get("approvata") is not None]
+    concluse = sorted(concluse, key=lambda x: x["data"], reverse=True)
+
+    if concluse:
+        for p in concluse:
+            stato = "✅ Approvata" if p["approvata"] else "❌ Rifiutata"
+            colore = "green" if p["approvata"] else "red"
+            st.markdown(f"**{p['proponente']} → {p['bersaglio']}** ({p['punti']} punti)")
+            st.caption(p["motivazione"])
+            st.markdown(f"<span style='color:{colore};font-weight:bold'>{stato}</span>", unsafe_allow_html=True)
+            st.divider()
+    else:
+        st.info("Nessuna proposta passata registrata.")
 
 # =======================
 # SEZIONE CLASSIFICA (Opzione B: Rank come indice)
