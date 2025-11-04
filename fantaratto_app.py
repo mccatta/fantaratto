@@ -162,31 +162,30 @@ elif menu == "Votazioni":
         st.write(p["motivazione"])
         st.caption(f"🕓 In attesa — voti mancanti di: {', '.join(mancanti) if mancanti else 'nessuno'}")
         
-# === CONTROLLO AUTOMATICO APPROVAZIONE / RIFIUTO ===
-for p in proposte:
-    if p.get("approvata") in [True, False]:
-        continue  # già decisa
+    # === CONTROLLO AUTOMATICO APPROVAZIONE / RIFIUTO ===
+    for p in proposte:
+        if p.get("approvata") in [True, False]:
+            continue  # già decisa
 
-    voti_assoc = [v for v in voti if v.get("proposta_id") == p["id"]]
-    if not voti_assoc:
-        continue
+        voti_assoc = [v for v in voti if v.get("proposta_id") == p["id"]]
+        if not voti_assoc:
+            continue
 
-    yes_votes = sum(1 for v in voti_assoc if v.get("voto") is True)
-    no_votes = sum(1 for v in voti_assoc if v.get("voto") is False)
-    total_votes = yes_votes + no_votes
+        yes_votes = sum(1 for v in voti_assoc if v.get("voto") is True)
+        no_votes = sum(1 for v in voti_assoc if v.get("voto") is False)
+        total_votes = yes_votes + no_votes
 
-    # Solo se almeno metà dei giocatori ha votato
-    if total_votes >= len(GIOCATORI) / 2:
-        if yes_votes > no_votes:
-            approvata = True
-        elif no_votes > yes_votes:
-            approvata = False
-        else:
-            approvata = None  # parità, resta in attesa
+        # Solo se almeno metà dei giocatori ha votato
+        if total_votes >= len(GIOCATORI) / 2:
+            if yes_votes > no_votes:
+                approvata = True
+            elif no_votes > yes_votes:
+                approvata = False
+            else:
+                approvata = None  # parità → ancora in attesa
 
-        if approvata is not None:
-            supabase_patch("proposte", "id", p["id"], {"approvata": approvata})
-
+            if approvata is not None:
+                supabase_patch("proposte", "id", p["id"], {"approvata": approvata})
 
     # === PROPOSTE CON ESITO (approvate o rifiutate) ===
     st.subheader("📜 Proposte concluse")
@@ -196,35 +195,31 @@ for p in proposte:
     for p in concluse:
         icon = "✅" if p["approvata"] else "❌"
         colore = "green" if p["approvata"] else "red"
-        st.markdown(f"<span style='color:{colore}; font-size: 18px;'>{icon} {p['proponente']} → {p['bersaglio']} ({p['punti']} punti)</span>", unsafe_allow_html=True)
+        st.markdown(
+            f"<span style='color:{colore}; font-size: 18px;'>{icon} "
+            f"{p['proponente']} → {p['bersaglio']} ({p['punti']} punti)</span>",
+            unsafe_allow_html=True
+        )
         st.caption(p["motivazione"])
 
-
 # =======================
-# SEZIONE CLASSIFICA (Opzione B: Rank come indice)
+# SEZIONE CLASSIFICA
 # =======================
 elif menu == "Classifica":
-      st.header("🏆 Classifica Ratto")
+    st.header("🏆 Classifica Ratto")
 
-      proposte = supabase_get("proposte")
-      punteggi = {g: 0 for g in GIOCATORI}
- 
-      for p in proposte:
-         if isinstance(p, dict) and p.get("approvata"):
-             try:
-                 punti_val = int(p.get("punti", 0))
-             except:
-                 punti_val = 0
-             bers = p.get("bersaglio")
-             if bers in punteggi:
-                 punteggi[bers] += punti_val
+    proposte = supabase_get("proposte")
+    punteggi = {g: 0 for g in GIOCATORI}
 
-      df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"])
-      df["Rank"] = df["Punti Ratto"].rank(method="dense", ascending=False).astype(int)
-      df = df.sort_values(["Rank", "Punti Ratto"], ascending=[True, False]).reset_index(drop=True)
+    for p in proposte:
+        if p.get("approvata"):
+            punteggi[p["bersaglio"]] += int(p["punti"])
 
-      display_df = df[["Rank", "Giocatore", "Punti Ratto"]].set_index("Rank")
-      st.dataframe(display_df, use_container_width=True)
+    df = pd.DataFrame(list(punteggi.items()), columns=["Giocatore", "Punti Ratto"])
+    df["Posizione"] = range(1, len(df) + 1)
+    df = df.sort_values("Punti Ratto", ascending=False).reset_index(drop=True)
+    st.dataframe(df[["Posizione", "Giocatore", "Punti Ratto"]], use_container_width=True)
+
 
 # =======================
 # SEZIONE STORICO
