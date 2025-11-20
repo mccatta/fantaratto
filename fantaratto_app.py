@@ -167,11 +167,12 @@ elif menu == "Votazioni":
             no_votes = sum(1 for v in voti_assoc if v.get("voto") is False)
             total_votes = yes_votes + no_votes
 
-            if yes_votes > len(GIOCATORI)/2:
+            if yes_votes >= len(GIOCATORI)/2:
                 approvata = True
-            elif no_votes > len(GIOCATORI)/2:
+            elif no_votes >= len(GIOCATORI)/2:
                 approvata = False
-            
+            else: 
+                continue
 
                 res = supabase_patch("proposte", "id", proposta_id, {"approvata": approvata})
                 if res:
