@@ -174,11 +174,11 @@ elif menu == "Votazioni":
             else: 
                 continue
 
-                res = supabase_patch("proposte", "id", proposta_id, {"approvata": approvata})
-                if res:
-                    st.success(f"✅ Proposta di {p['proponente']} → {p['bersaglio']} aggiornata con esito!")
-                else:
-                    st.error(f"Errore aggiornamento proposta {p['id']}")
+            res = supabase_patch("proposte", "id", proposta_id, {"approvata": approvata})
+            if res:
+                 st.success(f"✅ Proposta di {p['proponente']} → {p['bersaglio']} aggiornata con esito!")
+            else:
+                 st.error(f"Errore aggiornamento proposta {p['id']}")
 
         # === PROPOSTE VOTATE MA IN ATTESA DI ESITO ===
         st.markdown("---")
