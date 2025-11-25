@@ -112,7 +112,7 @@ elif menu == "Votazioni":
     # FUNZIONI OTTIMIZZATE
     # =========================================
 
-    @st.cache_data(ttl=3)
+    
     def get_proposte():
         return supabase_get("proposte") or []
 
